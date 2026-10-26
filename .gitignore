@@ -1,0 +1,20 @@
+# Ignore virtual environments
+venv/
+**/venv/
+env/
+**/env/
+
+# CRITICAL: Ignore environment variables & secret keys
+.env
+**/.env
+*.env
+
+# Ignore python bytecode & cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Ignore local backups
+*_backup*.py
+**/*_backup*.py
