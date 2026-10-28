@@ -146,14 +146,17 @@ def get_client(api_key: str):
     cleaned = clean_api_key(api_key)
     return genai.Client(api_key=cleaned)
 
-# Fetch API Key from Environment or Streamlit Secrets (for Streamlit Cloud)
-raw_key = os.getenv("GEMINI_API_KEY", "")
-if not raw_key:
-    try:
-        raw_key = st.secrets.get("GEMINI_API_KEY", "")
-    except Exception:
-        raw_key = ""
-api_key = clean_api_key(raw_key)
+# Fetch API Key: 1st Session State, 2nd Environment, 3rd Streamlit Secrets
+if "api_key" not in st.session_state:
+    raw_key = os.getenv("GEMINI_API_KEY", "")
+    if not raw_key:
+        try:
+            raw_key = st.secrets.get("GEMINI_API_KEY", "")
+        except Exception:
+            raw_key = ""
+    st.session_state.api_key = clean_api_key(raw_key)
+
+api_key = st.session_state.api_key
 
 # 5. Session State for Multi-Conversation Management
 if "chats" not in st.session_state:
@@ -214,16 +217,22 @@ with st.sidebar:
 
     # API Key Settings & Status
     st.markdown("---")
-    with st.expander("🔑 **API Key Settings**", expanded=not bool(api_key)):
+    with st.expander("🔑 **API Key Settings**", expanded=not bool(st.session_state.api_key)):
         input_key = st.text_input(
             "Gemini API Key",
-            value=api_key if api_key else "",
+            value=st.session_state.api_key if st.session_state.api_key else "",
             type="password",
             placeholder="Paste API key here...",
+            key="sidebar_key_field",
             help="Enter your key without quotes. Get one at https://aistudio.google.com/app/apikey"
         )
         if input_key:
-            api_key = clean_api_key(input_key)
+            cleaned = clean_api_key(input_key)
+            if cleaned and cleaned != st.session_state.api_key:
+                st.session_state.api_key = cleaned
+                st.rerun()
+
+    api_key = st.session_state.api_key
 
     # Status Footnote
     if api_key:
@@ -240,6 +249,33 @@ st.markdown("""
     <div class="status-badge">⚡ Powered by Google Gemini 3.1 Flash</div>
 </div>
 """, unsafe_allow_html=True)
+
+# Main Screen API Key Card if not configured
+if not api_key:
+    st.markdown("""
+    <div style="background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 16px; padding: 1.4rem; margin-bottom: 1.5rem; text-align: center;">
+        <h3 style="margin:0 0 0.4rem 0; color:#818cf8; font-size:1.2rem;">🔑 Connect Your Gemini API Key</h3>
+        <p style="color:#94a3b8; font-size:0.88rem; margin-bottom:1rem;">
+            Paste your Gemini API key below to unlock Text, Vision & Voice features.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    col_k1, col_k2 = st.columns([4, 1])
+    with col_k1:
+        direct_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            placeholder="Paste your key here (e.g. AQ... or AIza...)",
+            label_visibility="collapsed",
+            key="main_key_field"
+        )
+    with col_k2:
+        if st.button("Connect ⚡", use_container_width=True, type="primary"):
+            if direct_key:
+                cleaned = clean_api_key(direct_key)
+                if cleaned:
+                    st.session_state.api_key = cleaned
+                    st.rerun()
 
 # 8. Starter Prompts for Empty Chat
 if not current_chat["messages"]:
