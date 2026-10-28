@@ -299,13 +299,12 @@ elif recorded_audio and ("processed_audio" not in st.session_state or st.session
     user_prompt = "Listen to my voice audio and answer clearly in detail."
 
 if trigger_action:
-    if not api_key:
+    if not api_key or "your_" in api_key.lower() or "gemini_api_key_here" in api_key.lower():
         st.error(
-            "⚠️ **GEMINI_API_KEY is not configured!**\n\n"
-            "- **On Streamlit Cloud**: Go to App Dashboard ➔ **Settings** ➔ **Secrets**, then add:\n"
-            "  ```toml\n  GEMINI_API_KEY = \"your_gemini_api_key_here\"\n  ```\n"
-            "- **Quick Test**: Open the left sidebar ➔ enter your key in **Gemini API Key** box.\n"
-            "- **Locally**: Ensure `GEMINI_API_KEY` is saved in your `.env` file."
+            "⚠️ **Real Gemini API Key is required!**\n\n"
+            "You might have pasted the example placeholder `your_gemini_api_key_here` instead of your real key.\n\n"
+            "- Please enter your actual key in the left **Sidebar ➔ API Key Settings** box.\n"
+            "- Or update **Streamlit Cloud Dashboard ➔ Settings ➔ Secrets** with your real key."
         )
         st.stop()
 
