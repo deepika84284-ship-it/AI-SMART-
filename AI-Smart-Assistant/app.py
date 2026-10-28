@@ -132,18 +132,28 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def clean_api_key(raw_key: str) -> str:
+    if not raw_key:
+        return ""
+    k = str(raw_key).strip()
+    if "=" in k:
+        k = k.split("=", 1)[1].strip()
+    return k.strip("\"'` \t\r\n")
+
 # 4. Cache Gemini Client
 @st.cache_resource
 def get_client(api_key: str):
-    return genai.Client(api_key=api_key)
+    cleaned = clean_api_key(api_key)
+    return genai.Client(api_key=cleaned)
 
 # Fetch API Key from Environment or Streamlit Secrets (for Streamlit Cloud)
-api_key = os.getenv("GEMINI_API_KEY", "")
-if not api_key:
+raw_key = os.getenv("GEMINI_API_KEY", "")
+if not raw_key:
     try:
-        api_key = st.secrets.get("GEMINI_API_KEY", "")
+        raw_key = st.secrets.get("GEMINI_API_KEY", "")
     except Exception:
-        api_key = ""
+        raw_key = ""
+api_key = clean_api_key(raw_key)
 
 # 5. Session State for Multi-Conversation Management
 if "chats" not in st.session_state:
@@ -202,15 +212,19 @@ with st.sidebar:
                     st.session_state.active_chat_id = list(st.session_state.chats.keys())[0]
                 st.rerun()
 
-    # API Key Input Fallback if missing
-    if not api_key:
-        st.markdown("---")
-        st.caption("🔑 **Gemini API Key**")
-        input_key = st.text_input("Enter API Key", type="password", placeholder="Paste key here...", help="Enter API key or set GEMINI_API_KEY in Streamlit Cloud Secrets / .env")
-        if input_key:
-            api_key = input_key.strip()
-
+    # API Key Settings & Status
     st.markdown("---")
+    with st.expander("🔑 **API Key Settings**", expanded=not bool(api_key)):
+        input_key = st.text_input(
+            "Gemini API Key",
+            value=api_key if api_key else "",
+            type="password",
+            placeholder="Paste API key here...",
+            help="Enter your key without quotes. Get one at https://aistudio.google.com/app/apikey"
+        )
+        if input_key:
+            api_key = clean_api_key(input_key)
+
     # Status Footnote
     if api_key:
         st.markdown("<div style='font-size:0.75rem; color:#10b981;'>● Gemini Connected</div>", unsafe_allow_html=True)
@@ -381,6 +395,10 @@ if trigger_action:
             })
 
         except APIError as e:
-            st.error(f"⚠️ Gemini API Error: {e.message}")
+            err_msg = str(e.message) if hasattr(e, "message") else str(e)
+            if "API key not valid" in err_msg:
+                st.error("⚠️ **API key not valid!** Please check your Gemini API key in the sidebar or Streamlit Secrets. Ensure there are no quotes (`\"`), extra spaces, or `GEMINI_API_KEY = `.")
+            else:
+                st.error(f"⚠️ Gemini API Error: {err_msg}")
         except Exception as e:
             st.error(f"⚠️ Error: {str(e)}")
