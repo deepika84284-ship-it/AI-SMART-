@@ -137,7 +137,13 @@ st.markdown("""
 def get_client(api_key: str):
     return genai.Client(api_key=api_key)
 
+# Fetch API Key from Environment or Streamlit Secrets (for Streamlit Cloud)
 api_key = os.getenv("GEMINI_API_KEY", "")
+if not api_key:
+    try:
+        api_key = st.secrets.get("GEMINI_API_KEY", "")
+    except Exception:
+        api_key = ""
 
 # 5. Session State for Multi-Conversation Management
 if "chats" not in st.session_state:
@@ -196,12 +202,20 @@ with st.sidebar:
                     st.session_state.active_chat_id = list(st.session_state.chats.keys())[0]
                 st.rerun()
 
+    # API Key Input Fallback if missing
+    if not api_key:
+        st.markdown("---")
+        st.caption("🔑 **Gemini API Key**")
+        input_key = st.text_input("Enter API Key", type="password", placeholder="Paste key here...", help="Enter API key or set GEMINI_API_KEY in Streamlit Cloud Secrets / .env")
+        if input_key:
+            api_key = input_key.strip()
+
     st.markdown("---")
     # Status Footnote
     if api_key:
-        st.markdown("<div style='font-size:0.75rem; color:#10b981;'>● Gemini 3.1 Flash Connected</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.75rem; color:#10b981;'>● Gemini Connected</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div style='font-size:0.75rem; color:#ef4444;'>● API Key Missing in .env</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:0.75rem; color:#ef4444;'>● API Key Missing in Secrets/.env</div>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:0.75rem; color:#64748b;'>Modes: Text • Vision • Voice</div>", unsafe_allow_html=True)
 
 # 7. Main Hero Header
@@ -272,7 +286,13 @@ elif recorded_audio and ("processed_audio" not in st.session_state or st.session
 
 if trigger_action:
     if not api_key:
-        st.error("⚠️ GEMINI_API_KEY is not configured in `.env`.")
+        st.error(
+            "⚠️ **GEMINI_API_KEY is not configured!**\n\n"
+            "- **On Streamlit Cloud**: Go to App Dashboard ➔ **Settings** ➔ **Secrets**, then add:\n"
+            "  ```toml\n  GEMINI_API_KEY = \"your_gemini_api_key_here\"\n  ```\n"
+            "- **Quick Test**: Open the left sidebar ➔ enter your key in **Gemini API Key** box.\n"
+            "- **Locally**: Ensure `GEMINI_API_KEY` is saved in your `.env` file."
+        )
         st.stop()
 
     # Dynamic Title Generation for First Message
